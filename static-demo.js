@@ -70,6 +70,51 @@
     if (activate) createMobileCard(hotspot);
   });
 
+  const heroScene = document.querySelector(".engineeringSequence");
+  const heroStage = heroScene?.closest(".heroSequenceStage");
+  const heroFrames = heroScene ? Array.from(heroScene.querySelectorAll(".heroSequenceFrame")) : [];
+  const heroCounters = heroScene ? Array.from(heroScene.querySelectorAll(".heroSequenceCounter i")) : [];
+  const heroCaptionNumber = heroScene?.querySelector(".heroSequenceCaption span");
+  const heroCaptionTitle = heroScene?.querySelector(".heroSequenceCaption b");
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+  let currentHeroFrame = -1;
+  let heroAnimationRequest = 0;
+
+  const updateHeroSequence = () => {
+    heroAnimationRequest = 0;
+    if (!heroScene || !heroStage || !heroFrames.length) return;
+
+    const stickyOffset = window.innerWidth <= 720 ? 82 : 98;
+    const stageRect = heroStage.getBoundingClientRect();
+    const travel = Math.max(heroStage.offsetHeight - window.innerHeight + stickyOffset, 1);
+    const progress = reducedMotion.matches ? 0 : Math.min(1, Math.max(0, (stickyOffset - stageRect.top) / travel));
+    const nextFrame = Math.min(heroFrames.length - 1, Math.floor(progress * heroFrames.length));
+
+    heroScene.style.setProperty("--hero-sequence-progress", String(progress));
+    heroStage.dataset.sequenceFrame = String(nextFrame);
+    if (nextFrame === currentHeroFrame) return;
+    currentHeroFrame = nextFrame;
+
+    heroFrames.forEach((frame, index) => {
+      frame.classList.toggle("isActive", index === nextFrame);
+      frame.setAttribute("aria-hidden", String(index !== nextFrame));
+    });
+    heroCounters.forEach((counter, index) => counter.classList.toggle("isActive", index === nextFrame));
+
+    const activeFrame = heroFrames[nextFrame];
+    if (heroCaptionNumber) heroCaptionNumber.textContent = `${activeFrame.dataset.sequenceNum ?? "01"} / 08`;
+    if (heroCaptionTitle) heroCaptionTitle.textContent = activeFrame.dataset.sequenceTitle ?? "Цельный участок";
+  };
+
+  const requestHeroSequenceUpdate = () => {
+    if (!heroAnimationRequest) heroAnimationRequest = window.requestAnimationFrame(updateHeroSequence);
+  };
+
+  updateHeroSequence();
+  window.addEventListener("scroll", requestHeroSequenceUpdate, { passive: true });
+  window.addEventListener("resize", requestHeroSequenceUpdate);
+  reducedMotion.addEventListener("change", requestHeroSequenceUpdate);
+
   const revealTargets = document.querySelectorAll("[data-reveal]");
   if ("IntersectionObserver" in window) {
     const observer = new IntersectionObserver((entries) => {
@@ -83,6 +128,30 @@
   } else {
     revealTargets.forEach((target) => target.classList.add("isRevealed"));
   }
+
+  const parallaxTargets = document.querySelectorAll("[data-parallax]");
+  let parallaxAnimationRequest = 0;
+  const updateParallax = () => {
+    parallaxAnimationRequest = 0;
+    const viewportCenter = window.innerHeight / 2;
+    parallaxTargets.forEach((target) => {
+      if (reducedMotion.matches) {
+        target.style.setProperty("--parallax-y", "0px");
+        return;
+      }
+      const targetRect = target.getBoundingClientRect();
+      const targetCenter = targetRect.top + targetRect.height / 2;
+      const normalized = Math.min(1, Math.max(-1, (targetCenter - viewportCenter) / window.innerHeight));
+      target.style.setProperty("--parallax-y", `${normalized * -18}px`);
+    });
+  };
+  const requestParallaxUpdate = () => {
+    if (!parallaxAnimationRequest) parallaxAnimationRequest = window.requestAnimationFrame(updateParallax);
+  };
+  updateParallax();
+  window.addEventListener("scroll", requestParallaxUpdate, { passive: true });
+  window.addEventListener("resize", requestParallaxUpdate);
+  reducedMotion.addEventListener("change", requestParallaxUpdate);
 
   const form = document.querySelector(".leadForm");
   form?.addEventListener("submit", (event) => {
