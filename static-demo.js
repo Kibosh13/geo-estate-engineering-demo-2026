@@ -94,6 +94,7 @@
     });
     heroCounters.forEach((counter, index) => {
       counter.classList.toggle("isActive", index === nextFrame);
+      counter.classList.toggle("isNextCue", index === nextFrame + 1);
       counter.setAttribute("aria-pressed", String(index === nextFrame));
     });
 
