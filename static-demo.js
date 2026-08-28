@@ -261,11 +261,29 @@
   reducedMotion.addEventListener("change", requestParallaxUpdate);
 
   const form = document.querySelector(".leadForm");
-  form?.addEventListener("submit", (event) => {
+  form?.addEventListener("submit", async (event) => {
     event.preventDefault();
+    const submit = form.querySelector("button[type=submit]");
+    if (submit) { submit.disabled = true; submit.textContent = "Отправляем…"; }
+    if (cmsHosts.has(window.location.hostname)) {
+      const payload = Object.fromEntries(new FormData(form).entries());
+      try {
+        const response = await fetch("/cms/api.php?action=lead", { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.error || "Не удалось отправить заявку.");
+      } catch (error) {
+        if (submit) { submit.disabled = false; submit.innerHTML = "Обсудить участок <span>↘</span>"; }
+        let failure = form.querySelector(".formError");
+        if (!failure) { failure = document.createElement("p"); failure.className = "formError"; form.append(failure); }
+        failure.textContent = error instanceof Error ? error.message : "Не удалось отправить заявку.";
+        return;
+      }
+    }
     const success = document.createElement("div");
     success.className = "formSuccess";
-    success.innerHTML = "<span>✓</span><h3>Заявка принята</h3><p>Это демонстрация интерфейса. Подключение реального канала связи выполняется перед запуском.</p>";
+    success.innerHTML = cmsHosts.has(window.location.hostname)
+      ? "<span>✓</span><h3>Заявка принята</h3><p>Спасибо! Мы свяжемся с вами по указанному телефону.</p>"
+      : "<span>✓</span><h3>Заявка принята</h3><p>Это демонстрация интерфейса. На основном сайте обращение попадает в защищённую админку.</p>";
     form.replaceWith(success);
   });
 })();
