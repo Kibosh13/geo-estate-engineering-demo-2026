@@ -159,32 +159,24 @@
   });
 
   const heroScene = document.querySelector(".engineeringSequence");
-  const heroStage = heroScene?.closest(".heroSequenceStage");
   const heroFrames = heroScene ? Array.from(heroScene.querySelectorAll(".heroSequenceFrame")) : [];
-  const heroCounters = heroScene ? Array.from(heroScene.querySelectorAll(".heroSequenceStep")) : [];
   const heroCaptionNumber = heroScene?.querySelector(".heroSequenceCaption span");
   const heroCaptionTitle = heroScene?.querySelector(".heroSequenceCaption b");
   const heroGiftBadge = heroScene?.querySelector(".heroGiftBadge");
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+  const heroDelay = Number(heroScene?.dataset.sequenceAutoplay ?? 3000);
   let currentHeroFrame = -1;
-  let heroAnimationRequest = 0;
+  let heroTimer = 0;
 
-  const setHeroFrame = (requestedFrame, progress = 0) => {
-    if (!heroScene || !heroStage || !heroFrames.length) return;
+  const setHeroFrame = (requestedFrame) => {
+    if (!heroScene || !heroFrames.length) return;
     const nextFrame = Math.min(heroFrames.length - 1, Math.max(0, requestedFrame));
-    heroScene.style.setProperty("--hero-sequence-progress", String(progress));
-    heroStage.dataset.sequenceFrame = String(nextFrame);
     if (nextFrame === currentHeroFrame) return;
     currentHeroFrame = nextFrame;
 
     heroFrames.forEach((frame, index) => {
       frame.classList.toggle("isActive", index === nextFrame);
       frame.setAttribute("aria-hidden", String(index !== nextFrame));
-    });
-    heroCounters.forEach((counter, index) => {
-      counter.classList.toggle("isActive", index === nextFrame);
-      counter.classList.toggle("isNextCue", index === nextFrame + 1);
-      counter.setAttribute("aria-pressed", String(index === nextFrame));
     });
     heroGiftBadge?.classList.toggle("isVisible", nextFrame === 0);
     heroGiftBadge?.setAttribute("aria-hidden", String(nextFrame !== 0));
@@ -194,33 +186,22 @@
     if (heroCaptionTitle) heroCaptionTitle.textContent = activeFrame.dataset.sequenceTitle ?? "Геодезия участка";
   };
 
-  const updateHeroSequence = () => {
-    heroAnimationRequest = 0;
-    if (!heroScene || !heroStage || !heroFrames.length) return;
-    if (reducedMotion.matches || window.innerWidth <= 720) {
-      if (currentHeroFrame < 0) setHeroFrame(0, 0);
-      return;
-    }
-
-    const stickyOffset = 98;
-    const stageRect = heroStage.getBoundingClientRect();
-    const travel = Math.max(heroStage.offsetHeight - window.innerHeight + stickyOffset, 1);
-    const progress = Math.min(1, Math.max(0, (stickyOffset - stageRect.top) / travel));
-    const nextFrame = Math.min(heroFrames.length - 1, Math.floor(progress * heroFrames.length));
-    setHeroFrame(nextFrame, progress);
+  const startHeroAutoplay = () => {
+    window.clearInterval(heroTimer);
+    if (!heroFrames.length || reducedMotion.matches || document.hidden) return;
+    heroTimer = window.setInterval(() => {
+      setHeroFrame((currentHeroFrame + 1) % heroFrames.length);
+    }, Number.isFinite(heroDelay) && heroDelay >= 1000 ? heroDelay : 3000);
   };
 
-  const requestHeroSequenceUpdate = () => {
-    if (!heroAnimationRequest) heroAnimationRequest = window.requestAnimationFrame(updateHeroSequence);
-  };
-
-  updateHeroSequence();
-  window.addEventListener("scroll", requestHeroSequenceUpdate, { passive: true });
-  window.addEventListener("resize", requestHeroSequenceUpdate);
-  reducedMotion.addEventListener("change", requestHeroSequenceUpdate);
-  heroCounters.forEach((counter, index) => {
-    counter.addEventListener("click", () => setHeroFrame(index, index / Math.max(heroFrames.length - 1, 1)));
+  heroFrames.slice(1).forEach((frame) => {
+    const preload = new Image();
+    preload.src = frame.getAttribute("src") ?? "";
   });
+  setHeroFrame(0);
+  startHeroAutoplay();
+  document.addEventListener("visibilitychange", startHeroAutoplay);
+  reducedMotion.addEventListener("change", startHeroAutoplay);
 
   const revealTargets = document.querySelectorAll("[data-reveal]");
   if ("IntersectionObserver" in window) {
@@ -281,9 +262,7 @@
     }
     const success = document.createElement("div");
     success.className = "formSuccess";
-    success.innerHTML = cmsHosts.has(window.location.hostname)
-      ? "<span>✓</span><h3>Заявка принята</h3><p>Спасибо! Мы свяжемся с вами по указанному телефону.</p>"
-      : "<span>✓</span><h3>Заявка принята</h3><p>Это демонстрация интерфейса. На основном сайте обращение попадает в защищённую админку.</p>";
+    success.innerHTML = "<span>✓</span><h3>Заявка принята</h3><p>Спасибо! Мы свяжемся с вами по указанному телефону.</p>";
     form.replaceWith(success);
   });
 })();
