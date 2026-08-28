@@ -2,6 +2,94 @@
   if (window.__geoLandingStaticDemo) return;
   window.__geoLandingStaticDemo = true;
 
+  const cmsText = (value) => typeof value === "string" ? value.trim() : "";
+  const safeHref = (value, protocols = ["https:", "http:"]) => {
+    try {
+      const url = new URL(value, window.location.origin);
+      return protocols.includes(url.protocol) ? url.href : "";
+    } catch { return ""; }
+  };
+
+  const updatePublicContent = async () => {
+    try {
+      const response = await fetch("/cms/public-data.php", { cache: "no-store", credentials: "same-origin" });
+      if (!response.ok) return;
+      const content = await response.json();
+      const settings = content.settings || {};
+
+      const companyName = cmsText(settings.companyName);
+      if (companyName) document.querySelectorAll("[data-cms-company]").forEach((node) => { node.textContent = companyName; });
+
+      const contacts = [
+        ["phone", cmsText(settings.phone), settings.phone ? `tel:${String(settings.phone).replace(/[^+\d]/g, "")}` : ""],
+        ["email", cmsText(settings.email), settings.email ? `mailto:${settings.email}` : ""],
+        ["telegram", "Telegram ↗", safeHref(settings.telegram)],
+        ["whatsapp", "WhatsApp ↗", safeHref(settings.whatsapp)],
+      ].filter(([, label, href]) => label && href && label !== "Телефон" && label !== "Email");
+
+      document.querySelectorAll("[data-cms-contacts]").forEach((container) => {
+        container.replaceChildren(...contacts.map(([kind, label, href]) => {
+          const link = document.createElement("a");
+          link.dataset.cmsContact = kind;
+          link.href = href;
+          link.textContent = label;
+          if (kind === "telegram" || kind === "whatsapp") { link.target = "_blank"; link.rel = "noreferrer"; }
+          return link;
+        }));
+      });
+
+      document.querySelectorAll(".contactBody").forEach((body) => {
+        let direct = body.querySelector("[data-cms-contact-direct]");
+        if (!direct && contacts.length) {
+          direct = document.createElement("div");
+          direct.className = "contactDirect";
+          direct.dataset.cmsContactDirect = "";
+          const form = body.querySelector(".leadForm, .formSuccess");
+          body.insertBefore(direct, form || null);
+        }
+        if (direct) direct.replaceChildren(...contacts.map(([, label, href]) => {
+          const link = document.createElement("a"); link.href = href; link.textContent = label; return link;
+        }));
+      });
+
+      const media = content.media || {};
+      document.querySelectorAll("[data-cms-media]").forEach((image) => {
+        const item = media[image.dataset.cmsMedia];
+        if (!item) return;
+        const src = safeHref(item.src);
+        if (src) image.src = src;
+        if (cmsText(item.alt)) image.alt = cmsText(item.alt);
+      });
+
+      const gallery = document.querySelector("[data-cms-works]");
+      const works = Array.isArray(content.works) ? content.works.filter((work) => work && work.published !== false) : [];
+      if (gallery && works.length) {
+        gallery.replaceChildren(...works.map((work, index) => {
+          const card = document.createElement("article");
+          card.className = index === 0 || index === 3 ? "workCard workCard--wide" : "workCard";
+          const figure = document.createElement("figure");
+          const image = document.createElement("img");
+          image.src = safeHref(work.image) || "/geo-estate-engineering-demo-2026/images/process-quality.webp";
+          image.alt = cmsText(work.imageAlt) || cmsText(work.title);
+          image.loading = index < 2 ? "eager" : "lazy";
+          figure.append(image);
+          const copy = document.createElement("div");
+          const number = document.createElement("span"); number.textContent = String(index + 1).padStart(2, "0");
+          const title = document.createElement("h2"); title.textContent = cmsText(work.title);
+          const description = document.createElement("p"); description.textContent = [work.category, work.location, work.description].map(cmsText).filter(Boolean).join(" · ");
+          copy.append(number, title, description); card.append(figure, copy); return card;
+        }));
+        const count = document.querySelector("[data-cms-works-count]");
+        if (count) count.textContent = `Опубликовано объектов: ${works.length}`;
+      }
+    } catch {
+      // The public site remains fully usable with its built-in content.
+    }
+  };
+
+  const cmsHosts = new Set(["xn--80akoiirheb4bh3c.xn--p1ai", "участокмечты.рф", "rinmos.beget.tech", "localhost", "127.0.0.1"]);
+  if (cmsHosts.has(window.location.hostname)) updatePublicContent();
+
   const hotspotSelector = ".hotspot, .serviceHotspot";
   const triggerSelector = ".hotspotTrigger, .serviceHotspotTrigger";
 
