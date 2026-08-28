@@ -76,6 +76,7 @@
   const heroCounters = heroScene ? Array.from(heroScene.querySelectorAll(".heroSequenceStep")) : [];
   const heroCaptionNumber = heroScene?.querySelector(".heroSequenceCaption span");
   const heroCaptionTitle = heroScene?.querySelector(".heroSequenceCaption b");
+  const heroGiftBadge = heroScene?.querySelector(".heroGiftBadge");
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
   let currentHeroFrame = -1;
   let heroAnimationRequest = 0;
@@ -97,10 +98,12 @@
       counter.classList.toggle("isNextCue", index === nextFrame + 1);
       counter.setAttribute("aria-pressed", String(index === nextFrame));
     });
+    heroGiftBadge?.classList.toggle("isVisible", nextFrame === 0);
+    heroGiftBadge?.setAttribute("aria-hidden", String(nextFrame !== 0));
 
     const activeFrame = heroFrames[nextFrame];
     if (heroCaptionNumber) heroCaptionNumber.textContent = `${activeFrame.dataset.sequenceNum ?? "01"} / 08`;
-    if (heroCaptionTitle) heroCaptionTitle.textContent = activeFrame.dataset.sequenceTitle ?? "Цельный участок";
+    if (heroCaptionTitle) heroCaptionTitle.textContent = activeFrame.dataset.sequenceTitle ?? "Геодезия участка";
   };
 
   const updateHeroSequence = () => {
